@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Critical Spares Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: Arial, system-ui, sans-serif;
+  margin: 20px;
+  background: #ffffff;
+}
+
+.grid-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.card {
+  background: #F2F2F2;
+  border: 1px solid #e2e2e2;
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+
+.card.inventory {
+  display: flex;
+  flex-direction: column;
+}
+
+h2 { margin: 0 0 16px 0; font-size: 1.1rem; }
+p.muted { color: #666; margin-top: 10px; }
+
+label {
+  font-weight: 600;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+input, select {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid #d0d0d0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+button {
+  padding: 10px 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+
+.primary {
+  background: #000000;
+  color: #ffffff;
+}
+
+.results table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.results td {
+  padding: 9px 0;
+  border-bottom: 1px solid #eee;
+}
+</style>
+</head>
+
+<body>
+
+<div class="grid-top">
+
+<div class="card">
+<h2>Part & Reliability Inputs</h2>
+
+<label>Supplier</label>
+<input>
+
+<label>Part Number</label>
+<input>
+
+<label>Part Description</label>
+<input>
+
+<div class="row">
+  <div>
+    <label>MTBF per Part (years)</label>
+    <input id="mtbf" type="number" value="5">
+  </div>
+  <div>
+    <label>Parts per Asset</label>
+    <input id="partsPerAsset" type="number" value="1">
+  </div>
+</div>
+
+<label>Wear Characteristic</label>
+<select id="beta">
+  <option value="0.8">Early Life (β = 0.8)</option>
+  <option value="1" selected>Random (β = 1.0)</option>
+  <option value="1.5">Slow Aging (β = 1.5)</option>
+  <option value="2">Fast Aging (β = 2.0)</option>
+  <option value="2.5">Rapid Aging (β = 2.5)</option>
+</select>
+
+<div class="row">
+  <div>
+    <label>Evaluation Period (years)</label>
+    <input id="period" type="number" value="5">
+  </div>
+  <div>
+    <label>Monte Carlo Iterations</label>
+    <input id="iters" type="number" value="1000">
+  </div>
+</div>
+
+<label>Lost Value of Production ($/hr)</label>
+<input id="lostValue" type="number" value="20000">
+
+<label>Downtime if spare available (hrs)</label>
+<input id="downtime" type="number" value="8">
+</div>
+
+<div class="card inventory">
+<h2>Inventory Planning Inputs</h2>
+
+<label>Lead Time (weeks)</label>
+<input id="leadTime" type="number" value="10">
+
+<label>Probability of Part Having Spare When Required</label>
+<select id="serviceLevel">
+  <option value="0.50">50%</option>
+  <option value="0.60">60%</option>
+  <option value="0.70">70%</option>
+  <option value="0.80" selected>80%</option>
+  <option value="0.90">90%</option>
+  <option value="0.95">95%</option>
+</select>
+
+<div class="row">
+  <div>
+    <label>Order Cost ($/order)</label>
+    <input id="orderCost" type="number" value="250">
+  </div>
+  <div>
+    <label>Holding Cost ($/unit/year)</label>
+    <input id="holdingCost" type="number" value="500">
+  </div>
+</div>
+
+<div class="actions">
+  <button class="primary" onclick="run()">Calculate Spares Holding</button>
+  <button class="primary" onclick="resetAll()">Reset</button>
+</div>
+</div>
+
+</div>
+
+<div class="card results" style="margin-top:16px;">
+<h2>Results</h2>
+<div id="output"></div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+<h2>Recommended Actions</h2>
+<div id="recommendations" class="muted">
+Run the simulation to see recommended actions.
+</div>
+</div>
+
+<script>
+function gamma(z){
+  const p=[676.52,-1259.14,771.32,-176.62,12.51,-0.14,1e-5,1e-7];
+  if(z<0.5) return Math.PI/(Math.sin(Math.PI*z)*gamma(1-z));
+  z--;
+  let x=0.999999999;
+  for(let i=0;i<p.length;i++) x+=p[i]/(z+i+1);
+  let t=z+p.length-0.5;
+  return Math.sqrt(2*Math.PI)*Math.pow(t,z+0.5)*Math.exp(-t)*x;
+}
+
+function weibull(eta,b){
+  return eta*Math.pow(-Math.log(1-Math.random()),1/b);
+}
+
+function quantile(a,q){
+  const p=(a.length-1)*q;
+  const b=Math.floor(p);
+  return a[b+1]
+    ? a[b]+(p-b)*(a[b+1]-a[b])
+    : a[b];
+}
+
+const mtbfEl = document.getElementById("mtbf");
+const betaEl = document.getElementById("beta");
+const periodEl = document.getElementById("period");
+const itersEl = document.getElementById("iters");
+const partsEl = document.getElementById("partsPerAsset");
+const leadTimeEl = document.getElementById("leadTime");
+const serviceLevelEl = document.getElementById("serviceLevel");
+const orderCostEl = document.getElementById("orderCost");
+const holdingCostEl = document.getElementById("holdingCost");
+const lostValueEl = document.getElementById("lostValue");
+const downtimeEl = document.getElementById("downtime");
+const outputEl = document.getElementById("output");
+const recommendationsEl = document.getElementById("recommendations");
+
+function run(){
+  const mtbf = +mtbfEl.value;
+  const beta = +betaEl.value;
+  const years = +periodEl.value;
+  const N = +itersEl.value;
+  const parts = +partsEl.value;
+  const leadYears = +leadTimeEl.value / 52;
+
+  const eta = mtbf / gamma(1 + 1/beta);
+
+  const failures=[];
+  for(let i=0;i<N;i++){
+    let t=0,c=0;
+    while(true){
+      t+=weibull(eta,beta);
+      if(t<=years) c++;
+      else break;
+    }
+    failures.push(c*parts);
+  }
+
+  const expectedFailures = failures.reduce((a,b)=>a+b,0)/N;
+  const failuresPerYear = expectedFailures/years;
+  const downtimeCost = +lostValueEl.value * +downtimeEl.value;
+
+  const EOQ = Math.sqrt(
+    (2 * failuresPerYear * +orderCostEl.value) /
+    +holdingCostEl.value
+  );
+
+  const leadDemand = failures.map(f => f * (leadYears / years));
+  const ROP = quantile(
+    leadDemand.sort((a,b)=>a-b),
+    +serviceLevelEl.value
+  );
+
+  const orderQty = Math.max(1, Math.round(EOQ));
+  const minStock = Math.ceil(ROP);
+  const maxStock = minStock + orderQty;
+
+  outputEl.innerHTML = `
+    <table>
+      <tr><td><b>Expected failures (evaluation period)</b></td><td>${expectedFailures.toFixed(4)}</td></tr>
+      <tr><td><b>Failures per year</b></td><td>${failuresPerYear.toFixed(4)}</td></tr>
+      <tr><td><b>Downtime cost per failure</b></td><td>${downtimeCost.toFixed(2)}</td></tr>
+      <tr><td><b>EOQ</b></td><td>${EOQ.toFixed(2)}</td></tr>
+      <tr><td><b>Reorder Point (ROP)</b></td><td>${ROP.toFixed(2)}</td></tr>
+      <tr><td><b>Maximum Stock</b></td><td>${maxStock}</td></tr>
+    </table>`;
+
+  recommendationsEl.innerHTML =
+    `Hold a maximum of <b>${maxStock}</b> unit(s) and reorder
+     <b>${orderQty}</b> unit(s) when the reorder point of
+     <b>${minStock}</b> unit(s) is reached.`;
+}
+
+function resetAll(){
+  outputEl.innerHTML = "";
+  recommendationsEl.innerHTML =
+    "Run the simulation to see recommended actions.";
+}
+</script>
+
+</body>
+</html>
