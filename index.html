@@ -16,7 +16,7 @@ body {
 
 .grid-top {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -58,8 +58,7 @@ input, select {
 .actions {
   display: flex;
   gap: 10px;
-  margin-top: auto;
-  padding-top: 18px;
+  margin-top: 18px;
 }
 
 button {
@@ -91,101 +90,112 @@ button {
 
 <div class="grid-top">
 
-<div class="card">
-<h2>Part & Reliability Inputs</h2>
+  <!-- PART & RELIABILITY INPUTS -->
+  <div class="card">
+    <h2>Part & Reliability Inputs</h2>
 
-<label>Supplier</label>
-<input>
+    <label>Supplier</label>
+    <input>
 
-<label>Part Number</label>
-<input>
+    <label>Part Number</label>
+    <input>
 
-<label>Part Description</label>
-<input>
+    <label>Part Description</label>
+    <input>
 
-<div class="row">
-  <div>
-    <label>MTBF per Part (years)</label>
-    <input id="mtbf" type="number" value="5">
+    <div class="row">
+      <div>
+        <label>MTBF per Part (years)</label>
+        <input id="mtbf" type="number" value="5">
+      </div>
+      <div>
+        <label>Parts per Asset</label>
+        <input id="partsPerAsset" type="number" value="1">
+      </div>
+    </div>
+
+    <label>Wear Characteristic</label>
+    <select id="beta">
+      <option value="0.8">Early Life (β = 0.8)</option>
+      <option value="1" selected>Random (β = 1.0)</option>
+      <option value="1.5">Slow Aging (β = 1.5)</option>
+      <option value="2">Fast Aging (β = 2.0)</option>
+      <option value="2.5">Rapid Aging (β = 2.5)</option>
+    </select>
+
+    <div class="row">
+      <div>
+        <label>Evaluation Period (years)</label>
+        <input id="period" type="number" value="5">
+      </div>
+      <div>
+        <label>Monte Carlo Iterations</label>
+        <input id="iters" type="number" value="1000">
+      </div>
+    </div>
+
+    <label>Lost Value of Production ($/hr)</label>
+    <input id="lostValue" type="number" value="20000">
+
+    <label>Downtime if spare available (hrs)</label>
+    <input id="downtime" type="number" value="8">
   </div>
-  <div>
-    <label>Parts per Asset</label>
-    <input id="partsPerAsset" type="number" value="1">
+
+  <!-- INVENTORY INPUTS -->
+  <div class="card inventory">
+    <h2>Inventory Planning Inputs</h2>
+
+    <label>Lead Time (weeks)</label>
+    <input id="leadTime" type="number" value="10">
+
+    <label>Probability of Part Having Spare When Required</label>
+    <select id="serviceLevel">
+      <option value="0.50">50%</option>
+      <option value="0.60">60%</option>
+      <option value="0.70">70%</option>
+      <option value="0.80" selected>80%</option>
+      <option value="0.90">90%</option>
+      <option value="0.95">95%</option>
+    </select>
+
+    <div class="row">
+      <div>
+        <label>Order Cost ($/order)</label>
+        <input id="orderCost" type="number" value="250">
+      </div>
+      <div>
+        <label>Holding Cost ($/unit/year)</label>
+        <input id="holdingCost" type="number" value="500">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" onclick="run()">Calculate Spares Holding</button>
+      <button class="primary" onclick="resetAll()">Reset</button>
+    </div>
   </div>
-</div>
-
-<label>Wear Characteristic</label>
-<select id="beta">
-  <option value="0.8">Early Life (β = 0.8)</option>
-  <option value="1" selected>Random (β = 1.0)</option>
-  <option value="1.5">Slow Aging (β = 1.5)</option>
-  <option value="2">Fast Aging (β = 2.0)</option>
-  <option value="2.5">Rapid Aging (β = 2.5)</option>
-</select>
-
-<div class="row">
-  <div>
-    <label>Evaluation Period (years)</label>
-    <input id="period" type="number" value="5">
-  </div>
-  <div>
-    <label>Monte Carlo Iterations</label>
-    <input id="iters" type="number" value="1000">
-  </div>
-</div>
-
-<label>Lost Value of Production ($/hr)</label>
-<input id="lostValue" type="number" value="20000">
-
-<label>Downtime if spare available (hrs)</label>
-<input id="downtime" type="number" value="8">
-</div>
-
-<div class="card inventory">
-<h2>Inventory Planning Inputs</h2>
-
-<label>Lead Time (weeks)</label>
-<input id="leadTime" type="number" value="10">
-
-<label>Probability of Part Having Spare When Required</label>
-<select id="serviceLevel">
-  <option value="0.50">50%</option>
-  <option value="0.60">60%</option>
-  <option value="0.70">70%</option>
-  <option value="0.80" selected>80%</option>
-  <option value="0.90">90%</option>
-  <option value="0.95">95%</option>
-</select>
-
-<div class="row">
-  <div>
-    <label>Order Cost ($/order)</label>
-    <input id="orderCost" type="number" value="250">
-  </div>
-  <div>
-    <label>Holding Cost ($/unit/year)</label>
-    <input id="holdingCost" type="number" value="500">
-  </div>
-</div>
-
-<div class="actions">
-  <button class="primary" onclick="run()">Calculate Spares Holding</button>
-  <button class="primary" onclick="resetAll()">Reset</button>
-</div>
-</div>
 
 </div>
 
+<!-- RESULTS -->
 <div class="card results" style="margin-top:16px;">
-<h2>Results</h2>
-<div id="output"></div>
+  <h2>Results</h2>
+  <table>
+    <tr><td><b>Expected failures (evaluation period)</b></td><td id="r_expected">–</td></tr>
+    <tr><td><b>Failures per year</b></td><td id="r_rate">–</td></tr>
+    <tr><td><b>Downtime cost per failure</b></td><td id="r_downtime">–</td></tr>
+    <tr><td><b>EOQ</b></td><td id="r_eoq">–</td></tr>
+    <tr><td><b>Reorder Point (ROP)</b></td><td id="r_rop">–</td></tr>
+    <tr><td><b>Maximum Stock</b></td><td id="r_max">–</td></tr>
+  </table>
 </div>
 
+<!-- RECOMMENDATIONS -->
 <div class="card" style="margin-top:16px;">
-<h2>Recommended Actions</h2>
-<div id="recommendations" class="muted">
-Run the simulation to see recommended actions.
-</div>
+  <h2>Recommended Actions</h2>
+  <div id="recommendations" class="muted">
+    Run the simulation to see recommended actions.
+  </div>
 </div>
 
 <script>
@@ -210,20 +220,6 @@ function quantile(a,q){
     ? a[b]+(p-b)*(a[b+1]-a[b])
     : a[b];
 }
-
-const mtbfEl = document.getElementById("mtbf");
-const betaEl = document.getElementById("beta");
-const periodEl = document.getElementById("period");
-const itersEl = document.getElementById("iters");
-const partsEl = document.getElementById("partsPerAsset");
-const leadTimeEl = document.getElementById("leadTime");
-const serviceLevelEl = document.getElementById("serviceLevel");
-const orderCostEl = document.getElementById("orderCost");
-const holdingCostEl = document.getElementById("holdingCost");
-const lostValueEl = document.getElementById("lostValue");
-const downtimeEl = document.getElementById("downtime");
-const outputEl = document.getElementById("output");
-const recommendationsEl = document.getElementById("recommendations");
 
 function run(){
   const mtbf = +mtbfEl.value;
@@ -265,27 +261,38 @@ function run(){
   const minStock = Math.ceil(ROP);
   const maxStock = minStock + orderQty;
 
-  outputEl.innerHTML = `
-    <table>
-      <tr><td><b>Expected failures (evaluation period)</b></td><td>${expectedFailures.toFixed(4)}</td></tr>
-      <tr><td><b>Failures per year</b></td><td>${failuresPerYear.toFixed(4)}</td></tr>
-      <tr><td><b>Downtime cost per failure</b></td><td>${downtimeCost.toFixed(2)}</td></tr>
-      <tr><td><b>EOQ</b></td><td>${EOQ.toFixed(2)}</td></tr>
-      <tr><td><b>Reorder Point (ROP)</b></td><td>${ROP.toFixed(2)}</td></tr>
-      <tr><td><b>Maximum Stock</b></td><td>${maxStock}</td></tr>
-    </table>`;
+  r_expected.textContent = expectedFailures.toFixed(4);
+  r_rate.textContent = failuresPerYear.toFixed(4);
+  r_downtime.textContent = downtimeCost.toFixed(2);
+  r_eoq.textContent = EOQ.toFixed(2);
+  r_rop.textContent = ROP.toFixed(2);
+  r_max.textContent = maxStock;
 
   recommendationsEl.innerHTML =
     `Hold a maximum of <b>${maxStock}</b> unit(s) and reorder
-     <b>${orderQty}</b> unit(s) when the reorder point of
-     <b>${minStock}</b> unit(s) is reached.`;
+     <b>${orderQty}</b> unit(s) when stock reaches
+     <b>${minStock}</b> unit(s).`;
 }
 
 function resetAll(){
-  outputEl.innerHTML = "";
+  document.querySelectorAll('#r_expected,#r_rate,#r_downtime,#r_eoq,#r_rop,#r_max')
+    .forEach(el => el.textContent = '–');
   recommendationsEl.innerHTML =
     "Run the simulation to see recommended actions.";
 }
+
+const mtbfEl = document.getElementById("mtbf");
+const betaEl = document.getElementById("beta");
+const periodEl = document.getElementById("period");
+const itersEl = document.getElementById("iters");
+const partsEl = document.getElementById("partsPerAsset");
+const leadTimeEl = document.getElementById("leadTime");
+const serviceLevelEl = document.getElementById("serviceLevel");
+const orderCostEl = document.getElementById("orderCost");
+const holdingCostEl = document.getElementById("holdingCost");
+const lostValueEl = document.getElementById("lostValue");
+const downtimeEl = document.getElementById("downtime");
+const recommendationsEl = document.getElementById("recommendations");
 </script>
 
 </body>
